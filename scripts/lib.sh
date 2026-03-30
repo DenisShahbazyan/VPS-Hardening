@@ -86,6 +86,7 @@ _select_user() {
 
     if [[ ${#users[@]} -eq 0 ]]; then
         warn "$MSG_MANAGE_USERS_NONE"
+        pause
         return 1
     fi
 

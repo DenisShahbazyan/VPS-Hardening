@@ -45,11 +45,6 @@ step_ssh_port() {
     echo -e "${YELLOW}╚══════════════════════════════════════════════╝${NC}"
     echo ""
 
-    if ! confirm "$(printf "$MSG_PORT_CONFIRM" "$current_port" "$new_port")"; then
-        info "$MSG_CANCELED"
-        return 0
-    fi
-
     backup_file "/etc/ssh/sshd_config"
 
     # Обновить или добавить директиву Port

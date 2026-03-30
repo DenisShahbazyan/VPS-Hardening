@@ -15,6 +15,24 @@ step_ufw() {
         else
             echo -e "  ${MSG_UFW_STATUS} ${RED}${MSG_STATUS_INACTIVE}${NC}"
         fi
+
+        # Показать установленные правила
+        echo
+        echo -e "  ${BOLD}${MSG_UFW_CURRENT_RULES}${NC}"
+        if [[ "$ufw_raw" == "active" ]]; then
+            local rules_output
+            rules_output=$(ufw status 2>/dev/null | tail -n +3)
+            if [[ -n "$rules_output" ]]; then
+                while IFS= read -r line; do
+                    echo "  $line"
+                done <<< "$rules_output"
+            else
+                echo -e "  $MSG_UFW_NO_RULES"
+            fi
+        else
+            echo -e "  $MSG_UFW_NO_RULES"
+        fi
+
         echo
         echo -e "  ${BOLD}1)${NC} $MSG_UFW_OPT_ENABLE"
         echo -e "  ${BOLD}2)${NC} $MSG_UFW_OPT_DISABLE"
@@ -54,11 +72,6 @@ _ufw_enable() {
     warn "$MSG_UFW_RESET_WARN"
     echo ""
 
-    if ! confirm "$MSG_UFW_CONFIRM"; then
-        info "$MSG_CANCELED"
-        return 0
-    fi
-
     ufw --force reset          >> "$LOG_FILE" 2>&1
     ufw default deny incoming  >> "$LOG_FILE" 2>&1
     ufw default allow outgoing >> "$LOG_FILE" 2>&1
@@ -78,11 +91,6 @@ _ufw_disable() {
     ufw_raw=$(ufw status 2>/dev/null | awk 'NR==1{print $2}') || ufw_raw=""
     if [[ "$ufw_raw" != "active" ]]; then
         warn "$MSG_UFW_ALREADY_INACTIVE"
-        return 0
-    fi
-
-    if ! confirm "$MSG_UFW_DISABLE_CONFIRM"; then
-        info "$MSG_CANCELED"
         return 0
     fi
 

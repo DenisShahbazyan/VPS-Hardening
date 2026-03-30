@@ -120,11 +120,6 @@ _delete_user_interactive() {
         fi
     fi
 
-    if ! confirm "$(printf "$MSG_DELETE_USER_CONFIRM" "$username")"; then
-        info "$MSG_CANCELED"
-        return 0
-    fi
-
     # Завершаем все процессы пользователя перед удалением
     pkill -u "$username" 2>/dev/null || true
     loginctl terminate-user "$username" 2>/dev/null || true

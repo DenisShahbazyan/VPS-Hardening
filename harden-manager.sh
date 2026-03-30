@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
 #  harden-manager.sh — точка входа
-#  Запуск: sudo bash <(wget -qO - https://raw.githubusercontent.com/DenisShahbazyan/VPS-Hardening/master/harden-manager.sh)
+#  Запуск: wget -qO ~/harden.sh https://raw.githubusercontent.com/DenisShahbazyan/VPS-Hardening/master/harden-manager.sh && sudo bash ~/harden.sh
 # ─────────────────────────────────────────────────────────────────
 
 set -uo pipefail
@@ -14,8 +14,9 @@ readonly SCRIPT_MODULES=(
     "scripts/ssh_key.sh"
     "scripts/ssh_port.sh"
     "scripts/ufw.sh"
-    "scripts/fail2ban.sh"
+    "scripts/crowdsec.sh"
     "scripts/disable_root.sh"
+    "scripts/auto_setup.sh"
 )
 
 LOG_DIR="/var/log/vps-hardening"
@@ -149,9 +150,9 @@ _render_status() {
         ufw_str="${RED}${MSG_STATUS_INACTIVE}${NC}"
     fi
 
-    # Статус fail2ban
+    # Статус CrowdSec
     local f2b_raw
-    f2b_raw=$(systemctl is-active fail2ban 2>/dev/null) || f2b_raw="inactive"
+    f2b_raw=$(systemctl is-active crowdsec 2>/dev/null) || f2b_raw="inactive"
     if [[ "$f2b_raw" == "active" ]]; then
         f2b_str="${GREEN}${MSG_STATUS_ACTIVE}${NC}"
     else
@@ -178,7 +179,23 @@ _render_status() {
     echo -e "  $(_pad_label "$MSG_STATUS_USERS"    $w) ${users_str}"
     echo -e "  $(_pad_label "$MSG_STATUS_SSH_PORT" $w) ${CYAN}${ssh_port}${NC}"
     echo -e "  $(_pad_label "UFW"                  $w) ${ufw_str}"
-    echo -e "  $(_pad_label "fail2ban"             $w) ${f2b_str}"
+    echo -e "  $(_pad_label "CrowdSec"             $w) ${f2b_str}"
+
+    # Бансеры — только если CrowdSec активен и cscli доступен
+    if [[ "$f2b_raw" == "active" ]] && command -v cscli &>/dev/null; then
+        local b_name b_ip b_revoked b_last b_type bouncer_raw b_str
+        while IFS=, read -r b_name b_ip b_revoked b_last b_type _; do
+            [[ -z "$b_name" ]] && continue
+            bouncer_raw=$(systemctl is-active "$b_type" 2>/dev/null) || bouncer_raw="inactive"
+            if [[ "$bouncer_raw" == "active" ]]; then
+                b_str="${GREEN}${MSG_STATUS_ACTIVE}${NC}"
+            else
+                b_str="${RED}${MSG_STATUS_INACTIVE}${NC}"
+            fi
+            echo -e "    ${CYAN}└─${NC} ${b_name}  ${b_str}"
+        done < <(cscli bouncers list -o raw 2>/dev/null | tail -n +2)
+    fi
+
     echo -e "  $(_pad_label "$MSG_STATUS_ROOT_SSH" $w) ${root_str}"
     echo
 }
@@ -199,7 +216,7 @@ _show_menu() {
     echo -e "  ${BOLD}2)${NC} $MSG_MENU_MANAGE_KEYS"
     echo -e "  ${BOLD}3)${NC} $MSG_MENU_SSH_PORT"
     echo -e "  ${BOLD}4)${NC} $MSG_MENU_UFW"
-    echo -e "  ${BOLD}5)${NC} $MSG_MENU_FAIL2BAN"
+    echo -e "  ${BOLD}5)${NC} $MSG_MENU_CROWDSEC"
     local root_login_now
     root_login_now=$(grep -iE '^PermitRootLogin' /etc/ssh/sshd_config 2>/dev/null \
         | awk '{print tolower($2)}' | head -1) || root_login_now=""
@@ -210,6 +227,9 @@ _show_menu() {
         menu_root_label="$MSG_MENU_DISABLE_ROOT"
     fi
     echo -e "  ${BOLD}6)${NC} ${menu_root_label}"
+    echo ""
+    echo -e "  ${BOLD}7)${NC} ${CYAN}${MSG_MENU_AUTO_SETUP}${NC}"
+    echo -e "  ${BOLD}8)${NC} ${YELLOW}${MSG_MENU_RESET_DEFAULTS}${NC}"
     echo ""
     echo -e "  ${BOLD}Enter)${NC} $MSG_MENU_EXIT"
     echo
@@ -226,12 +246,14 @@ _menu_loop() {
 
         case "${choice,,}" in
             # Пункты с подменю — открываются на новом экране, pause не нужен
-            1) step_manage_users || true; continue ;;
-            2) step_manage_keys  || true; continue ;;
-            3) step_ssh_port     || true ;;
-            4) step_ufw          || true; continue ;;
-            5) step_fail2ban     || true; continue ;;
-            6) step_disable_root || true ;;
+            1) step_manage_users    || true; continue ;;
+            2) step_manage_keys     || true; continue ;;
+            3) step_ssh_port        || true ;;
+            4) step_ufw             || true; continue ;;
+            5) step_crowdsec        || true; continue ;;
+            6) step_disable_root    || true ;;
+            7) step_auto_setup      || true ;;
+            8) step_reset_defaults  || true ;;
             "")
                 exit 0
                 ;;

@@ -43,11 +43,6 @@ _disable_root() {
     warn "$MSG_ROOT_WARNING"
     echo ""
 
-    if ! confirm "$MSG_ROOT_CONFIRM"; then
-        info "$MSG_CANCELED"
-        return 0
-    fi
-
     backup_file "/etc/ssh/sshd_config"
 
     if grep -qE '^PermitRootLogin' /etc/ssh/sshd_config; then
@@ -72,11 +67,6 @@ _disable_root() {
 # ── Включить root SSH ─────────────────────────────────────────────
 
 _enable_root() {
-    if ! confirm "$MSG_ROOT_ENABLE_CONFIRM"; then
-        info "$MSG_CANCELED"
-        return 0
-    fi
-
     backup_file "/etc/ssh/sshd_config"
 
     if grep -qE '^PermitRootLogin' /etc/ssh/sshd_config; then

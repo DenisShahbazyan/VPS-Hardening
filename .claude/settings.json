@@ -1,12 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bash -n /Users/d.shahbazyan/dev/MY/VPS-Hardening/scripts/ssh_port.sh)",
-      "Bash(bash -n /Users/d.shahbazyan/dev/MY/VPS-Hardening/scripts/fail2ban.sh)",
-      "Bash(echo \"OK: $f\")",
-      "Bash(bash -n /Users/d.shahbazyan/dev/MY/VPS-Hardening/scripts/create_user.sh)",
-      "Bash(bash -n /Users/d.shahbazyan/dev/MY/VPS-Hardening/scripts/disable_root.sh)",
-      "Bash(bash -n /Users/d.shahbazyan/dev/MY/VPS-Hardening/scripts/ssh_key.sh)"
+      "Bash(for f:*)",
+      "Bash(do bash:*)",
+      "Bash(echo \"FAIL: $f\")",
+      "Bash(done)"
     ]
   }
 }

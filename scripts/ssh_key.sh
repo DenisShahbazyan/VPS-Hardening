@@ -132,11 +132,6 @@ _delete_key_interactive() {
         return 1
     fi
 
-    if ! confirm "$(printf "$MSG_KEY_DELETE_CONFIRM" "$key_num")"; then
-        info "$MSG_CANCELED"
-        return 0
-    fi
-
     local target_key="${keys[$((key_num - 1))]}"
     local tmp_file
     tmp_file=$(mktemp)

@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Запуск из GitHub:**
 ```bash
-sudo bash <(wget -qO - https://raw.githubusercontent.com/DenisShahbazyan/VPS-Hardening/master/harden-manager.sh)
+wget -qO ~/harden.sh https://raw.githubusercontent.com/DenisShahbazyan/VPS-Hardening/master/harden-manager.sh && sudo bash ~/harden.sh
 ```
 
 **Локальный запуск (разработка):**
@@ -47,7 +47,7 @@ for f in harden-manager.sh scripts/*.sh scripts/i18n/*.sh; do bash -n "$f" || ec
 
 1. `scripts/i18n/{LANG_CODE}.sh` — первым, определяет все `MSG_*`-переменные
 2. `scripts/lib.sh` — цвета, логирование, хелперы (`confirm`, `pause`, `backup_file`, `get_ssh_port`)
-3. `scripts/create_user.sh`, `scripts/ssh_key.sh`, `scripts/ssh_port.sh`, `scripts/ufw.sh`, `scripts/fail2ban.sh`, `scripts/disable_root.sh` — модули шагов, зависят от `lib.sh`
+3. `scripts/create_user.sh`, `scripts/ssh_key.sh`, `scripts/ssh_port.sh`, `scripts/ufw.sh`, `scripts/crowdsec.sh`, `scripts/disable_root.sh` — модули шагов, зависят от `lib.sh`
 
 ### Соглашение об именовании функций
 
@@ -89,6 +89,5 @@ set -uo pipefail  # без set -e
 
 Перед изменением системных файлов всегда создавать бэкап через `backup_file()` из `lib.sh`. Это касается:
 - `/etc/ssh/sshd_config`
-- `/etc/fail2ban/jail.local`
 
 После изменения `sshd_config` — валидировать через `sshd -t` перед рестартом сервиса.
