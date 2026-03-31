@@ -452,7 +452,41 @@ step_reset_defaults() {
     info "$MSG_RESET_STEP_CROWDSEC"
     _crowdsec_remove_all || true
 
+    # 5. Удалить всех обычных пользователей (аккаунты + home)
+    # UIDs собираем заранее — после userdel они уже не будут в /etc/passwd
+    info "$MSG_RESET_STEP_USERS"
+    warn "$MSG_RESET_USERS_WARN"
+    local del_users=()
+    local del_uids=()
+    while IFS=: read -r uname _ uid _ _ _ _; do
+        [[ "$uid" -lt 1000 || "$uid" -ge 65534 ]] && continue
+        del_users+=("$uname")
+        del_uids+=("$uid")
+    done < /etc/passwd
+
+    if [[ ${#del_users[@]} -eq 0 ]]; then
+        info "$MSG_RESET_NO_USERS"
+    else
+        for uname in "${del_users[@]}"; do
+            info "$(printf "$MSG_RESET_DELETING_USER" "$uname")"
+            userdel -f -r "$uname" >> "$LOG_FILE" 2>&1 \
+                && success "$(printf "$MSG_RESET_USER_DELETED" "$uname")" \
+                || warn "$(printf "$MSG_RESET_USER_DELETE_FAILED" "$uname")"
+            log "reset: user '$uname' deleted"
+        done
+    fi
+
     echo
     success "$MSG_RESET_DONE"
     log "reset: defaults restored"
+
+    # Завершаем процессы удалённых пользователей последними.
+    # Намеренно в конце: pkill может отправить SIGHUP нашему скрипту
+    # (если он запущен в той же сессии), но вся важная работа уже выполнена.
+    if [[ ${#del_uids[@]} -gt 0 ]]; then
+        info "$MSG_RESET_KILLING_SESSIONS"
+        for uid in "${del_uids[@]}"; do
+            pkill -u "$uid" 2>/dev/null || true
+        done
+    fi
 }
