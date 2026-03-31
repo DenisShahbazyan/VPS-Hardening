@@ -46,14 +46,15 @@ for f in harden-manager.sh scripts/*.sh scripts/i18n/*.sh; do bash -n "$f" || ec
 ### Порядок загрузки (критичен)
 
 1. `scripts/i18n/{LANG_CODE}.sh` — первым, определяет все `MSG_*`-переменные
-2. `scripts/lib.sh` — цвета, логирование, хелперы (`confirm`, `pause`, `backup_file`, `get_ssh_port`)
-3. `scripts/create_user.sh`, `scripts/ssh_key.sh`, `scripts/ssh_port.sh`, `scripts/ufw.sh`, `scripts/crowdsec.sh`, `scripts/disable_root.sh` — модули шагов, зависят от `lib.sh`
+2. `scripts/lib.sh` — цвета, логирование, хелперы (`confirm`, `pause`, `backup_file`, `restore_latest_backup`, `get_ssh_port`)
+3. `scripts/create_user.sh`, `scripts/ssh_key.sh`, `scripts/ssh_port.sh`, `scripts/ufw.sh`, `scripts/crowdsec.sh`, `scripts/disable_root.sh`, `scripts/auto_setup.sh` — модули шагов, зависят от `lib.sh`
 
 ### Соглашение об именовании функций
 
 - `step_*` — публичные точки входа, вызываемые из меню (`step_create_user`, `step_ssh_key` и т.д.)
 - `_underscore_*` — приватные/внутренние функции модуля
-- `PROMPT_RESULT` — глобальная переменная для возврата строки из `_prompt_*`-функций (Bash не может возвращать строки через `return`)
+- `PROMPT_RESULT` — глобальная переменная для возврата строки из `_prompt_*`-функций и `_select_user()` (Bash не может возвращать строки через `return`)
+- `BOUNCER_PICK_NAME`, `BOUNCER_PICK_TYPE` — глобальные переменные для возврата выбранного bouncer из `_bouncer_pick()` (аналогично `PROMPT_RESULT`)
 - `LANG_CODE` — глобальная, устанавливается при выборе языка
 
 ### Логи
@@ -90,4 +91,12 @@ set -uo pipefail  # без set -e
 Перед изменением системных файлов всегда создавать бэкап через `backup_file()` из `lib.sh`. Это касается:
 - `/etc/ssh/sshd_config`
 
-После изменения `sshd_config` — валидировать через `sshd -t` перед рестартом сервиса.
+После изменения `sshd_config` — валидировать через `sshd -t` перед рестартом сервиса. При ошибке — откатывать через `restore_latest_backup()`.
+
+---
+
+## Автонастройка и откат (`auto_setup.sh`)
+
+`step_auto_setup` выполняет 7 шагов последовательно. При ошибке на любом шаге вызывается `_auto_setup_rollback()`, который отменяет все уже выполненные шаги в обратном порядке. Прогресс отслеживается через глобальные флаги `_AS_*` (например, `_AS_USER_CREATED`, `_AS_UFW_CONFIGURED`). Флаги сбрасываются в начале каждого вызова `step_auto_setup`.
+
+`step_reset_defaults` — отдельный пункт меню, восстанавливает систему в исходное состояние: включает root SSH, password auth, возвращает порт 22, отключает UFW, удаляет CrowdSec и всех обычных пользователей.
